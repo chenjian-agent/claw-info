@@ -1,0 +1,56 @@
+name: Auto-approve on CI Success
+
+on:
+  workflow_run:
+    types:
+      - completed
+    workflows:
+      - Check Commit Author
+
+jobs:
+  approve-on-success:
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = github.event.workflow_run.pull_requests?.[0]?.number;
+            
+            if (!prNumber) {
+              console.log('No PR found in workflow_run');
+              return;
+            }
+            
+            console.log(`PR #${prNumber} CI passed, checking approval status...`);
+            
+            // Get existing reviews
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            
+            // Check if already approved by github-actions[bot]
+            const alreadyApproved = reviews.some(r => 
+              r.user?.login === 'github-actions[bot]'
+            );
+            
+            if (alreadyApproved) {
+              console.log('Already approved by github-actions[bot]');
+              return;
+            }
+            
+            // Approve the PR
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              event: 'APPROVE',
+              body: '✅ Auto-approved: CI passed successfully'
+            });
+            
+            console.log('PR auto-approved successfully');
