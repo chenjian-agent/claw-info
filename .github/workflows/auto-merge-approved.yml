@@ -105,13 +105,40 @@ jobs:
               return;
             }
 
-            // Check mergeability.
-            // mergeable_state values: clean, dirty, blocked, unstable, unknown, behind, draft...
-            const mergeableState = pr.mergeable_state;
+            // Gate on mergeability + required checks.
+            // NOTE: mergeable_state is flaky/transient (often reports `unstable` even when checks are green),
+            // so we avoid using it as the primary signal.
+            if (pr.mergeable !== true) {
+              core.info(`Not mergeable yet (mergeable=${pr.mergeable}); skip.`);
+              return;
+            }
 
-            // Only merge when clean (i.e., branch protection + required checks satisfied)
-            if (mergeableState !== 'clean') {
-              core.info(`Not clean (mergeable_state=${mergeableState}); skip.`);
+            const requiredChecks = [
+              'check-author', // Check Commit Author
+              'check',        // Block Forbidden Files
+            ];
+
+            const headSha = pr.head.sha;
+            const { data: checkData } = await github.rest.checks.listForRef({
+              owner,
+              repo,
+              ref: headSha,
+              per_page: 100,
+            });
+
+            const checkByName = new Map((checkData.check_runs || []).map(cr => [cr.name, cr]));
+            const missing = requiredChecks.filter(n => !checkByName.has(n));
+            if (missing.length) {
+              core.info(`Missing required checks on ${headSha}: ${missing.join(', ')}; skip.`);
+              return;
+            }
+
+            const notSuccess = requiredChecks
+              .map(n => checkByName.get(n))
+              .filter(cr => cr.conclusion !== 'success');
+
+            if (notSuccess.length) {
+              core.info(`Required checks not SUCCESS yet: ${notSuccess.map(cr => `${cr.name}=${cr.conclusion}`).join(', ')}; skip.`);
               return;
             }
 
