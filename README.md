@@ -9,6 +9,8 @@ claw-info/
 ├── .github/workflows/
 │   └── check-commit-author.yml    # 檢查 commit author 的 workflow
 ├── docs/
+│   ├── core/
+│   │   └── gateway-lifecycle.md   # Gateway 架構與生命週期（重啟/更新/排障）
 │   ├── bedrock_auth.md            # AWS Bedrock 認證與配置指南
 │   ├── bedrock_pricing.md         # Bedrock 模型定價與成本控制
 │   ├── cron.md                    # OpenClaw Cron 調度系統深度解析
@@ -30,6 +32,7 @@ claw-info/
 ### docs/
 技術文件與實作指南，包含：
 
+- **core/gateway-lifecycle.md** - Gateway 架構與生命週期（重啟/更新/排障）
 - **bedrock_auth.md** - AWS Bedrock 認證與配置指南
 - **bedrock_pricing.md** - Bedrock 模型定價與成本控制
 - **cron.md** - OpenClaw Cron 調度系統深度解析
