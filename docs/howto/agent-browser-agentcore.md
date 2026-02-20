@@ -105,7 +105,9 @@ npm install
 npm run build
 npm i -g .
 
-# 2) 下載 Chromium（第一次需要）
+# 2) 下載 Chromium（建議，但可選）
+# 若你主要使用 AWS AgentCore Browser（`-p agentcore`），多數情況可先略過。
+# 只有在遇到 Playwright/Chromium 相關錯誤（例如 browser binaries not installed）時，再執行：
 agent-browser install
 
 # 3) 連 AWS Bedrock AgentCore Browser（需要 AWS credentials）
@@ -285,7 +287,14 @@ npm run build:native
 
 ---
 
-## 4. 安裝 Chromium（第一次必做）
+## 4. 安裝 Chromium（建議，但可選）
+
+若你主要使用 AWS AgentCore Browser（`agent-browser -p agentcore ...`），瀏覽器執行於雲端，**多數情況不需要**在本機安裝 Chromium。
+
+但仍建議在下列情境安裝（或排障時再補做）：
+
+- 你也會使用本機 provider（非 agentcore）
+- 你看到與 Playwright/Chromium 相關的錯誤（例如 `browser binaries not installed` / 找不到 Chromium）
 
 ```bash
 agent-browser install
