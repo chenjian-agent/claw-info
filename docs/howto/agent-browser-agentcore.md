@@ -64,6 +64,62 @@ PR #397 主要新增：
 
 本指南預設 region 使用 `us-east-1`（可改）。
 
+### 1.3 IAM 權限（執行 agent-browser 的身份都需要）
+
+不論你是 **真人在終端機操作**、或是 **由 Agent/自動化流程呼叫 `agent-browser`**，只要使用的是同一組 AWS credentials / role / permission set，該「執行身份」就必須具備本節列出的 `bedrock-agentcore:*` 權限，否則會在 start session / connect stream / stop session 任一步驟遇到 `403 Forbidden`。
+
+`agent-browser -p agentcore` 在背後會做三件事：
+
+1. **Start session**（REST API）
+2. **Connect automation stream**（WebSocket / CDP）
+3. **Stop session**（REST API）
+
+因此最小權限通常需要：
+
+- `bedrock-agentcore:StartBrowserSession`
+- `bedrock-agentcore:ConnectBrowserAutomationStream`
+- `bedrock-agentcore:StopBrowserSession`
+
+若你還要在 AWS Console 看 **Live View**：
+
+- `bedrock-agentcore:ConnectBrowserLiveViewStream`
+
+若你要用 `AGENTCORE_PROFILE_ID` 做 **profile persistence**（cookies/localStorage 跨 session 保留）：
+
+- `bedrock-agentcore:GetBrowserProfile`
+- `bedrock-agentcore:SaveBrowserSessionProfile`
+
+#### 建議做法：建立一個 customer managed policy（先跑通，再收斂）
+
+先用 `Resource: "*"` 跑通；確認可用後再依你們的 browser / browser-profile ARN 收斂範圍。
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AgentCoreBrowserMinimal",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-agentcore:StartBrowserSession",
+        "bedrock-agentcore:ConnectBrowserAutomationStream",
+        "bedrock-agentcore:StopBrowserSession"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+> 權限清單（官方）：https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonbedrockagentcore.html
+
+#### 如何讓使用者/Agent 自行確認
+
+- 直接跑一次：
+  - `agent-browser -p agentcore open https://example.com`
+  - 若缺權限通常會看到 `403 Forbidden` 或類似 `Failed to start AgentCore browser session`。
+- 若你們組織允許，可用 **AWS Policy Simulator**（Console）針對上述 actions 測試是否 Allow。
+
 ---
 
 ## 2. 取得 PR #397 原始碼
