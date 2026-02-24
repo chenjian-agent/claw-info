@@ -94,16 +94,26 @@ Profile persistence (cookies/localStorage)
 ## TL;DR（最短成功路徑）
 
 ```bash
-# 1) build 這個 PR 的版本（npm）
+# 1) build 這個 PR 的版本（TypeScript daemon + Rust CLI）
 git clone https://github.com/vercel-labs/agent-browser.git
 cd agent-browser
 
 git fetch origin pull/397/head:pr-397
 git checkout pr-397
 
+# 1a) Build TypeScript daemon
 npm install
-npm run build
+npm run build          # 產出 dist/（Node.js daemon）
+
+# 1b) Build Rust CLI binary
+cd cli
+cargo build --release  # 產出 cli/target/release/agent-browser
+cd ..
+
+# 1c) 安裝到全域
 npm i -g .
+# 用 Rust binary 覆蓋 npm 安裝的 JS wrapper：
+cp cli/target/release/agent-browser "$(dirname $(which agent-browser))/agent-browser"
 
 # 2) 下載 Chromium（建議，但可選）
 # 若你主要使用 AWS AgentCore Browser（`-p agentcore`），多數情況可先略過。
@@ -138,7 +148,7 @@ PR #397 主要新增：
 
 - Node.js（建議用 LTS；至少需能跑 `npm install` / `npm run build`）
 - npm
-- （可選）Rust toolchain（如果你要 build native Rust CLI）：https://rustup.rs
+- Rust toolchain（CLI binary 需要）：https://rustup.rs
 
 ### 1.2 AWS / Bedrock AgentCore 端
 
@@ -243,46 +253,86 @@ git checkout pr-397
 
 ---
 
-## 3. Build（npm 版本）
+## 3. Build
 
-### 3.1 安裝依賴 + build TypeScript
+agent-browser 由兩個部分組成，**兩者都需要 build**：
+
+| 元件 | 語言 | Build 指令 | 產出 | 用途 |
+|---|---|---|---|---|
+| Daemon | TypeScript | `npm run build` | `dist/` | 背景常駐程序，負責 Playwright 控制、AgentCore session 管理 |
+| CLI | Rust | `cd cli && cargo build --release` | `cli/target/release/agent-browser` | 使用者直接執行的 binary，透過 Unix socket 與 daemon 溝通 |
+
+> ⚠️ 只跑 `npm run build` 而沒有 rebuild Rust CLI 是最常見的踩坑點——CLI binary 不會更新，新功能（如 Live View URL 輸出）不會生效。
+
+### 3.1 Build TypeScript daemon
 
 ```bash
 npm install
 npm run build
 ```
 
-> 註：這會產出 `dist/`（Node.js fallback / daemon）。
+### 3.2 Build Rust CLI binary
 
-### 3.2 安裝到全域（預設）
+需要 Rust toolchain（https://rustup.rs）。
+
+```bash
+cd cli
+cargo build --release
+cd ..
+```
+
+> **已知問題**：PR #397 的 `cli/src/main.rs` 中 `fn main()` 缺少 `Result` 回傳型別，會導致編譯失敗。修正方式：
+>
+> 1. 將 `fn main() {` 改為 `fn main() -> Result<(), Box<dyn std::error::Error>> {`
+> 2. 將函式內所有 bare `return;` 改為 `return Ok(());`
+> 3. 在函式結尾加上 `Ok(())`
+
+### 3.3 安裝到全域
 
 ```bash
 npm i -g .
+
+# 用 Rust binary 覆蓋 npm 安裝的 JS wrapper：
+cp cli/target/release/agent-browser "$(dirname $(which agent-browser))/agent-browser"
 ```
 
 驗證：
 
 ```bash
+agent-browser --version
 agent-browser --help
 # 你應該能在 provider 列表看到 agentcore
 ```
 
-### 3.3（可選）用 npm link（方便本機迭代）
+### 3.4（可選）用 npm link（方便本機迭代）
 
 如果你要改 code 然後立即測：
 
 ```bash
 npm link
+# 同樣需要覆蓋 CLI binary：
+cp cli/target/release/agent-browser "$(dirname $(which agent-browser))/agent-browser"
 ```
 
 > 解除 link：`npm unlink -g agent-browser`（或依 npm 版本略有差異）。
 
-### 3.4（可選）Build native Rust CLI
+### 3.5 Rebuild 後必須重啟 daemon
 
-如果你想要原生 Rust binary（效能最佳），需要 Rust：
+agent-browser 使用 daemon 架構——CLI 只是 client，實際邏輯跑在背景的 Node.js daemon。**rebuild 後如果不重啟 daemon，舊的 daemon 仍會繼續服務，新功能不會生效。**
+
+`agent-browser close` 會同時關閉瀏覽器 session 並停止 daemon（`process.exit(0)`），下次執行任何命令時會自動啟動新 daemon：
 
 ```bash
-npm run build:native
+agent-browser close
+# 下一個命令會自動用新 build 啟動 daemon
+agent-browser -p agentcore open https://x.com/home
+```
+
+如果 `close` 無法正常執行（例如 daemon 卡住），可手動清理：
+
+```bash
+pkill -9 -f "node.*daemon"
+rm -f ~/.agent-browser/default.sock ~/.agent-browser/default.pid
 ```
 
 ---
