@@ -4,7 +4,7 @@
 
 ## 概覽
 
-當有新版 openclaw 時，系統會透過 Telegram 通知你。你回覆 `/update_claw` 後，更新會自動執行，包含 gateway 重啟與完成確認。
+當有新版 openclaw 時，系統會透過 Telegram 通知你，並附上風險評估（🟢/🟡/🔴）。你回覆 `UPDATE CLAW` 後，更新會自動執行，包含 gateway 重啟與完成確認。
 
 ## 工作流程
 
@@ -18,14 +18,19 @@
         │                     │                        │
         │          ┌──────────┴──────────┐             │
         │          │  發現新版本          │             │
+        │          │  抓取 release notes  │             │
+        │          │  讀取 openclaw.json  │             │
+        │          │  分析風險等級        │             │
         │          └──────────┬──────────┘             │
         │                     │                        │
         │◄────────────────────┤                        │
         │  "🦞 X→Y 有新版本   │                        │
-        │   請送出 /update_claw"│                       │
+        │   風險評估：🟡 medium│                        │
+        │   • breaking change │                        │
+        │   說 UPDATE CLAW"   │                        │
         │                     │                        │
         │  你送出             │                        │
-        │  /update_claw       │                        │
+        │  UPDATE CLAW        │                        │
         ├────────────────────►│                        │
         │                     │                        │
         │          ┌──────────┴──────────┐             │
@@ -66,13 +71,20 @@
 ## 元件說明
 
 ### openclaw cron 排程
-- 每小時執行一次，使用獨立 agent session
+- 每小時執行一次，使用獨立 isolated agent session
 - 比較 `openclaw --version` 與 `npm show openclaw version`
-- 發現新版本時發送 Telegram 通知
+- 版本相同時靜默，不發任何通知
+- 發現新版本時：
+  1. 抓取 GitHub release notes（`api.github.com/repos/openclaw/openclaw/releases/tags/v$LATEST`）
+  2. 讀取 `~/.openclaw/openclaw.json`
+  3. 分析 release notes 對照當前 config，產出風險等級與影響摘要
+  4. 發送含風險評估的 Telegram 通知
+
+> ⚠️ cron payload 直接內嵌完整指令，不依賴 skill（isolated session 不載入 skill）
 
 ### openclaw workspace skill：`update_claw`
 - 自動註冊為 `/update_claw` Telegram slash command
-- 你在 Telegram 送出 `/update_claw` 時觸發
+- 你在 Telegram 送出 `/update_claw` 或 `UPDATE CLAW` 時觸發
 - 使用 `setsid` 讓 kiro-cli 脫離 gateway 程序，確保 gateway 重啟後仍能繼續執行
 
 ### kiro skill：`openclaw-update`
@@ -82,6 +94,7 @@
 ### 更新腳本：`openclaw-update.sh`
 ```bash
 npm install -g openclaw@latest --ignore-scripts
+openclaw doctor --fix --non-interactive   # 修復 systemd service 設定
 systemctl --user restart openclaw-gateway.service
 # 輪詢直到 gateway 就緒
 openclaw message send ... "🎉 已更新至 $NEW_VERSION"
@@ -91,8 +104,10 @@ openclaw message send ... "🎉 已更新至 $NEW_VERSION"
 
 - **`setsid`** — 讓 kiro-cli 脫離 openclaw gateway 的 cgroup，確保 gateway 重啟時不被一併終止
 - **`--ignore-scripts`** — 避免 node v24 上 `@discordjs/opus` 原生編譯失敗
+- **`openclaw doctor --fix`** — npm install 後、restart 前執行，修復 systemd service 指向正確的 node/binary
 - **輪詢等待** — gateway 重啟後最多等待 60 秒，確認就緒後才發送 TG 確認訊息
-- **獨立 cron session** — 版本檢查在獨立 context 執行，不污染 main session
+- **獨立 cron session** — 版本檢查在獨立 isolated context 執行，不污染 main session
+- **inline cron message** — isolated session 不載入 skill，完整步驟直接內嵌於 cron payload message
 
 ## 常見問題排除
 
