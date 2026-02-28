@@ -28,6 +28,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           version="${{ steps.latest.outputs.version }}"
           title="Release notes: OpenClaw $version"
           existing=$(gh issue list \
@@ -36,7 +37,7 @@ jobs:
             --search "$title" \
             --json title \
             --jq ".[] | select(.title == \"$title\") | .title" \
-            | head -1)
+            | head -1) || { echo "::error::GitHub API failed"; exit 1; }
           echo "existing=$existing" >> "$GITHUB_OUTPUT"
           if [ -n "$existing" ]; then
             echo "Issue already exists: $existing"

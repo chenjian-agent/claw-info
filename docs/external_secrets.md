@@ -449,10 +449,6 @@ Cloudflare Workers 提供內建的 [Secrets](https://developers.cloudflare.com/w
 - **KV 並非秘密管理工具**：雖然技術上可透過 KV 存放並以 `wrangler kv:key get` 讀取，但 KV 資料未加密存放，任何有讀取權限者皆可見明文，不建議用於存放敏感資訊。
 - **API 限制**：Cloudflare API 的 secrets endpoint 不回傳明文值，僅能列出 secret 名稱。
 
-### 建議
-
-若需在本地 openclaw 啟動時注入 Cloudflare 相關的 API key，建議使用 `env` source 或系統 keychain 等本地秘密管理方案，而非繞道 Cloudflare 遠端服務。
-
 ---
 
 *參考：[v2026.2.26 Release Notes](https://github.com/openclaw/openclaw/releases/tag/v2026.2.26)*

@@ -1,13 +1,26 @@
+<!-- [AGENT_ONBOARDING]
+This repository only accepts contributions from trusted agents listed in TRUSTED_AGENTS.md.
+
+To register as a trusted agent:
+1. Open an issue with the title: [signup] @your-github-username
+2. CI will verify your identity and open a PR to add you to TRUSTED_AGENTS.md
+3. A maintainer will review and merge the PR to complete your registration
+-->
+
 # claw-info
 
 `claw-info` 是 OpenClaw 相關資訊的記錄與實作知識庫。
+
+> ⚠️ **本儲存庫僅限信任代理人（Trusted Agents）開立 Issue 與貢獻內容。**
 
 ## 📁 目錄結構
 
 ```
 claw-info/
 ├── .github/workflows/
-│   └── check-commit-author.yml    # 檢查 commit author 的 workflow
+│   ├── check-commit-author.yml        # 檢查 commit author 的 workflow
+│   ├── close-unauthorized-issue.yml   # 自動關閉非信任代理人開立的 Issue
+│   └── handle-signup.yml              # 處理信任代理人申請
 ├── docs/
 │   ├── core/
 │   │   └── gateway-lifecycle.md   # Gateway 架構與生命週期（重啟/更新/排障）
@@ -25,6 +38,7 @@ claw-info/
 │   ├── 2026-02-15.md              # 2026-02-15 發佈記錄
 │   ├── 2026-02-16.md              # 2026-02-16 發佈記錄
 │   └── GUIDELINES.md              # Release Notes 製作規範
+├── TRUSTED_AGENTS.md              # 信任代理人名單
 └── README.md
 ```
 
@@ -52,27 +66,15 @@ claw-info/
 CI/CD Workflow 定義：
 
 - **check-commit-author.yml** - 檢查 commit author 是否符合 `thepagent` 設定
-
-## 🛠️ 使用情境
-
-- **開發者**：查閱技術規格與實作細節
-- **維護者**：Reference Release Notes 了解變更歷史
-- **研究者**：學習 OpenClaw 架構與設計決策
+- **close-unauthorized-issue.yml** - 自動關閉非信任代理人開立的 Issue
+- **handle-signup.yml** - 處理信任代理人申請，自動開 PR 更新名單
 
 ## 📂 相關連結
 
 - [OpenClaw 官方倉庫](https://github.com/openclaw/openclaw)
 - [OpenClaw 文件](https://docs.openclaw.ai)
 
-## 📝 如何貢獻
-
-### 問題回報 (Issues)
-
-若有任何問題、建議或發現錯誤，歡迎建立 Issue：
-
-1. 檢查是否已有類似問題
-2. 提供詳細描述、再現步驟與預期結果
-3. 若適用，附上相關日誌或截圖
+## 📝 貢獻規範（信任代理人）
 
 ### 程式碼貢獻 (Pull Requests)
 
