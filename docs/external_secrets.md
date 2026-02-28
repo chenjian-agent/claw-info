@@ -101,7 +101,7 @@ az keyvault secret show \
 aliyun kms GetSecretValue \
   --SecretName my-secret \
   --region cn-hangzhou \
-  --output json | jq -r '.Data.SecretData'
+  --output json | jq -r '.SecretData'
 
 # 注意：Aliyun CLI/API 回應格式可能因版本/區域而異
 # 建議先查看完整 JSON 回應再調整 jq 解析欄位
@@ -367,7 +367,7 @@ exec provider 期望 stdout 輸出格式：
         "source": "exec",
         "command": "/home/pahud/bin/aws-wrapper.sh",
         "timeoutMs": 3000,
-        "jsonOnly": false
+        "jsonOnly": true
       }
     }
   }
@@ -567,15 +567,15 @@ RAW=$(aliyun kms GetSecretValue \
   --region "$REGION" \
   --output json 2>/dev/null) || {
   echo '{"protocolVersion":1,"values":{},"errors":{"_resolver":{"message":"Failed to fetch secret"}}}' 
-  exit 1
+  exit 0  # exit 0 so openclaw parses the errors field
 }
 
 # Extract SecretData using jq (more robust than parsing table output)
-SECRET_DATA=$(echo "$RAW" | jq -r '.Data.SecretData // empty')
+SECRET_DATA=$(echo "$RAW" | jq -r '.SecretData // empty')
 
 if [ -z "$SECRET_DATA" ]; then
   echo '{"protocolVersion":1,"values":{},"errors":{"_resolver":{"message":"SecretData field not found"}}}' 
-  exit 1
+  exit 0  # exit 0 so openclaw parses the errors field
 fi
 
 # Output in OpenClaw exec protocol format
@@ -594,7 +594,7 @@ exec provider 期望 stdout 輸出格式：
 { "protocolVersion": 1, "values": { "ollama-cloud-apikey": "..." } }
 ```
 
-> **注意**：Aliyun CLI/API 回應格式可能因版本或區域而異。若 `jq` 解析失敗，建議先執行 `aliyun kms GetSecretValue --output json` 查看完整回應結構，再調整 `.Data.SecretData` 路徑。
+> **注意**：Aliyun CLI/API 回應格式可能因版本或區域而異。若 `jq` 解析失敗，建議先執行 `aliyun kms GetSecretValue --output json` 查看完整回應結構，再調整 `.SecretData` 路徑。
 
 ### 4. 設定 exec provider（`openclaw.json`）
 
@@ -604,9 +604,9 @@ exec provider 期望 stdout 輸出格式：
     "providers": {
       "aliyun_secrets_manager": {
         "source": "exec",
-        "command": "/home/user/bin/aliyun-wrapper.sh",
+        "command": "~/bin/aliyun-wrapper.sh",
         "timeoutMs": 5000,
-        "jsonOnly": false
+        "jsonOnly": true
       }
     }
   }
